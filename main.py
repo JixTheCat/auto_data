@@ -124,11 +124,20 @@ def size(tonnes: float):
 ##########
 # Data in:
 
-def data_in():
-    return pd.read_excel(
-        'data.xlsx',
-        sheet_name='Vineyard',
-        index_col='Membership Number')
+def data_in(sheet_name='Vineyard'):
+    # Read the data without setting the index
+    data = pd.read_excel('data.xlsx', sheet_name=sheet_name, index_col=False, header=1)
+
+    # Remove leading apostrophes from 'Membership Number' column
+    data['Membership Number'] = data['Membership Number'].astype(str).str.lstrip("'")
+
+    data['Membership Number'] = data['Membership Number'].astype(int)
+
+    # Set 'Membership Number' as the index
+    data.set_index('Membership Number', inplace=True)
+
+    print(data.head())
+    return data
 
 ###################
 # Data transformations
@@ -136,24 +145,24 @@ def data_in():
 def data_transform(df):
     #df = df[~df['Paid At'].isnull()]
     df = df.fillna(0)
-    df['Total Vineyard Area'] = df['Red grapes'] + df['White grapes']
-    df['t/ha'] = df['Grapes harvested'] / df['Total Vineyard Area']
-    df['Total water used'] = df['River water'] + df['Groundwater'] + \
-        df['Surface water dam'] + df['Recycled water from winery'] + \
-        df['Recycled water from other source'] + df['Mains water'] + \
-        df['Other water'] + df['Water applied for frost control']
+    df['Total Vineyard Area'] = df['Red grapes (ha)'] + df['White grapes (ha)']
+    df['t/ha'] = df['Grapes harvested (t)'] / df['Total Vineyard Area']
+    df['Total water used'] = df['River water (ML)'] + df['Groundwater (ML)'] + \
+        df['Surface water dam (ML)'] + df['Recycled water from winery (ML)'] + \
+        df['Recycled water from other source (ML)'] + df['Mains water (ML)'] + \
+        df['Other water (ML)'] + df['Water applied for frost control (ML)']
     df['ml/ha'] = df['Total water used'] / df['Total Vineyard Area']
-    df['ml/t'] = df['Total water used'] / df['Grapes harvested']
-    df['total irrigation'] = df['Irrigation type - Dripper'] + \
-        df['Irrigation type - Undervine Sprinkler'] + \
-        df['Irrigation type - Overhead Sprinkler'] + \
-        df['Irrigation type - Flood'] + \
-        df['Irrigation type - Non-irrigated']
+    df['ml/t'] = df['Total water used'] / df['Grapes harvested (t)']
+    df['total irrigation'] = df['Irrigation type - Dripper (ha)'] + \
+        df['Irrigation type - Undervine Sprinkler (ha)'] + \
+        df['Irrigation type - Overhead Sprinkler (ha)'] + \
+        df['Irrigation type - Flood (ha)'] + \
+        df['Irrigation type - Non-irrigated (ha)']
     df['total fuel'] = df['Petrol (L)'] + \
         df['LPG (L)'] +\
         df['Diesel (L)'] + \
         df['Biodiesel (L)']
-    df['fuel / t'] = df['total fuel'] / df['Grapes harvested']
+    df['fuel / t'] = df['total fuel'] / df['Grapes harvested (t)']
     df['#No. Passes'] = df['Slashing Number of times/passes per year'] + \
         df['Fungicide spraying Number of times/passes per year'] + \
         df['Insecticide spraying Number of times/passes per year'] + \
@@ -165,26 +174,26 @@ def data_transform(df):
     df['fertiliser/ha'] = df['Applied Fertiliser'] / \
                          df['Total Vineyard Area']
     df['fertiliser/tonnes'] = df['Applied Fertiliser'] / \
-        df['Grapes harvested']
-    df['total cover'] = df['Annual cover crop'] + \
-        df['Permanent cover crop non native'] + \
-        df['Permanent cover crop volunteer sward'] + \
-        df['Permanent cover crop - native'] + \
-        df['Bare soil']
+        df['Grapes harvested (t)']
+    df['total cover'] = df['Annual cover crop (ha)'] + \
+        df['Permanent cover crop non native (ha)'] + \
+        df['Permanent cover crop volunteer sward (ha)'] + \
+        df['Permanent cover crop - native (ha)'] + \
+        df['Bare soil (ha)']
     df['irrigation count'] = \
-        (df['Irrigation type - Dripper'] > 0)*1 +\
-        (df['Irrigation type - Undervine Sprinkler'] > 0)*1 +\
-        (df['Irrigation type - Overhead Sprinkler'] > 0)*1 +\
-        (df['Irrigation type - Flood'] > 0)*1 +\
-        (df['Irrigation type - Non-irrigated'] > 0)*1
+        (df['Irrigation type - Dripper (ha)'] > 0)*1 +\
+        (df['Irrigation type - Undervine Sprinkler (ha)'] > 0)*1 +\
+        (df['Irrigation type - Overhead Sprinkler (ha)'] > 0)*1 +\
+        (df['Irrigation type - Flood (ha)'] > 0)*1 +\
+        (df['Irrigation type - Non-irrigated (ha)'] > 0)*1
     df['irrigation%'] = \
         df['total irrigation'] / \
         df['Total Vineyard Area']
     df['area not harvested'] =\
-        df['Frost'] +\
-        df['Non-sale'] +\
-        df['New development / redevelopment'] +\
-        df['Pest/disease']
+        df['Frost (ha)'] +\
+        df['Non-sale (ha)'] +\
+        df['New development / redevelopment (ha)'] +\
+        df['Pest/disease (ha)']
 
     df['Climate'] = df['GI Region'].apply(climate)
 
@@ -260,10 +269,10 @@ problems['Using percentages instead of ha/ml'] = cond_problem(
 problems['Not included developed hectares'] = np.nan
 df_conc = pd.concat([df[
             df['Total Vineyard Area'] +
-            df['New development / redevelopment']
+            df['New development / redevelopment (ha)']
             == df['total irrigation']],
         df[df['Total Vineyard Area'] +
-            df['New development / redevelopment']
+            df['New development / redevelopment (ha)']
             == df['total cover']]],
         axis=0)
 problems['Not included developed hectares'] = cond_problem(
@@ -332,7 +341,7 @@ problems['total undervine does not add up to vineyard area'] = np.nan
 problems['total undervine does not add up to vineyard area'] = \
 cond_problem(
     df[df['total cover'] < df['Total Vineyard Area']]
-    [df['total cover'] + df['Livestock grazing'] !=
+    [df['total cover'] + df['Livestock grazing (ha)'] !=
         df['Total Vineyard Area']]
     ['Data Reporting Year']
     , problems['total undervine does not add up to vineyard area']
@@ -403,28 +412,28 @@ problems['Labelled harvested without yield'] = cond_problem(
     df[df['Was any of your vineyard NOT harvested last season?']
        == 'No'][
         'Was any of your vineyard NOT harvested last season?'],
-    df['Grapes harvested']
+    df['Grapes harvested (t)']
 )
 
-col1 = df[df['Electricity from the grid'].isnull()][
-    'Electricity from the grid']
+col1 = df[df['Electricity from the grid (kWh)'].isnull()][
+    'Electricity from the grid (kWh)']
 col1 = col1.replace({np.nan: 0})
 
-problems['No electricity from the grid and no Solar'] = cond_problem(
+problems['No Electricity from the grid and no Solar'] = cond_problem(
     col1,
-    df['Solar.1'])
+    df['Solar (kWh)'])
 
 problems['Diesel irrigation and no diesel use'] = cond_problem(
-    df['Diesel'], df['Diesel (L)'])
+    df['Diesel (ha)'], df['Diesel (L)'])
 
 problems['Electric irrigation and no elctricity from grid used'] = \
-    cond_problem(df['Electricity'], df['Electricity from the grid'])
+    cond_problem(df['Electricity (ha)'], df['Electricity from the grid (kWh)'])
 
 problems['Solar irrigation and no solar electricity used'] = \
-    cond_problem(df['Solar'], df['Solar.1'])
+    cond_problem(df['Solar (kWh)'], df['Solar (kWh)'])
 
 #TODO
-# - If there is no electricity from the grid they have to use solar
+# - If there is no Electricity from the grid (kWh) they have to use solar
 # I am not sure if the above is done correctly.
 
 ###############################
@@ -440,25 +449,24 @@ problems.to_excel('problems_vineyard.xlsx')
 ##################
 # Winery issues
 
-df = pd.read_excel(
-    'data.xlsx', sheet_name='Winery', index_col='Membership Number')
+df = data_in(sheet_name='Winery')
 
 ###################
 # Data transformations
 #df = df[~df['Paid At'].isnull()]
 df = df.fillna(0)
 
-df['% Extraction'] = df['Full winemaking'] / df['Tonnes crushed']
+df['% Extraction'] = df['Full winemaking (kL)'] / df['Tonnes crushed']
 
-df['water / crushed'] = df['Water used'] / df['Tonnes crushed']
+df['water / crushed'] = df['Water used (kL)'] / df['Tonnes crushed']
 
-df['litre of wine'] = df['Full winemaking'] + \
-    df['First stage winemaking'] + df['Final stage winemaking']
-df['water / litre of wine'] = df['Water used'] / \
+df['litre of wine'] = df['Full winemaking (kL)'] + \
+    df['First stage winemaking (kL)'] + df['Final stage winemaking (kL)']
+df['water / litre of wine'] = df['Water used (kL)'] / \
     df['litre of wine']
 
 df['electricity'] = df['Other'] + df['Wind'] + df['Solar'] + \
-    df['Renewable energy from the grid'] + \
+    df['Renewable energy generated onsite and exported to the grid'] + \
     df['Electricity from the grid']
 df['electricity / tonne'] = df['electricity'] / df['Tonnes crushed']
 
@@ -472,7 +480,7 @@ df['fuel / co2'] = (df['Petrol (L)'] * 2.289) + \
 df['total fuel / CO2 / Tonne crush'] = df['fuel / co2'] / \
     df['Tonnes crushed']
 
-df['used / waste'] = df['Wastewater generated'] / df['Water used']
+df['used / waste'] = df['Wastewater recycled (kL)'] / df['Water used (kL)']
 
 df['Size'] = df['Tonnes crushed'].apply(size)
 
@@ -514,7 +522,7 @@ col1 = df[df['Electricity from the grid'].isnull()][
     'Electricity from the grid']
 col1 = col1.replace({np.nan: 0})
 
-problems['No electricity from the grid and no Solar'] = cond_problem(
+problems['No Electricity from the grid and no Solar'] = cond_problem(
     col1,
     df['Solar'])
 
