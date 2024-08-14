@@ -145,8 +145,10 @@ def data_in(sheet_name='Vineyard'):
 def data_transform(df):
     #df = df[~df['Paid At'].isnull()]
     df = df.fillna(0)
-    df['Total Vineyard Area'] = df['Red grapes (ha)'] + df['White grapes (ha)']
-    df['t/ha'] = df['Grapes harvested (t)'] / df['Total Vineyard Area']
+    # df['Total Vineyard Area'] = df['Red grapes (ha)'] + df['White grapes (ha)']
+    df['Total Vineyard Area'] = df['Total Vineyard Area (ha)'].copy()
+    # df['t/ha'] = df['Grapes harvested (t)'] / df['Total Vineyard Area']
+    df['t/ha'] = df['Total t/ha harvested'].copy()
     df['Total water used'] = df['River water (ML)'] + df['Groundwater (ML)'] + \
         df['Surface water dam (ML)'] + df['Recycled water from winery (ML)'] + \
         df['Recycled water from other source (ML)'] + df['Mains water (ML)'] + \
@@ -204,12 +206,54 @@ df = data_transform(df)
 problems = pd.DataFrame(index=df.index)
 
 ###################
-# Finding problems using radicals
+# # Finding problems using radicals
+# for col in ['t/ha', 'ml/ha', 'ml/t', 'fuel / t', '#No. Passes',
+#             'fertiliser/ha', 'fertiliser/tonnes', 'irrigation%']:
+
+#     #TODO
+#     # check by zone as well as region
+#     gp = df.groupby('GI Region')
+#     regions = []
+#     counts = gp[col].count()
+#     for region in counts.index:
+#         if counts.loc[region] > minimum_count:
+#             regions.append(region)
+#     gp = df[df['GI Region'].isin(regions)].groupby('GI Region')
+#     #
+#     df_temp = gp[col].transform(zscore)
+#     df_temp = pd.concat(
+#         (df_temp[df_temp > threshold], df_temp[df_temp < -threshold]),
+#         axis=0)
+#     original_values = df[(df_temp > threshold) | (df_temp < -threshold)][col]
+    
+#     cl = df.groupby('Climate')
+#     cl_temp = cl[col].transform(zscore)
+#     # cl_temp = pd.concat(
+#         # (cl_temp[cl_temp > threshold], cl_temp[cl_temp < -threshold]),
+#         # axis=0)
+#     cl_original_values = df[(cl_temp > threshold) | (cl_temp < -threshold)][col]
+
+#     problems['Unusual ' + col] = np.nan
+#     # problems['Unusual ' + col].fillna(cl_temp, inplace=True)
+#     # problems['Unusual ' + col].fillna(df_temp, inplace=True)
+#     problems['Unusual ' + col].fillna(cl_original_values, inplace=True)
+#     problems['Unusual ' + col].fillna(original_values, inplace=True)
+#     #problems['Unusual ' + col + ' (by region)'] = np.nan
+#     #problems['Unusual ' + col + ' (by region)'].fillna(df_temp, inplace=True)
+#     #problems['Unusual ' + col + ' (by climate)'] = np.nan
+#     #problems['Unusual ' + col + ' (by climate)'].fillna(cl_temp, inplace=True)
+
+
+#     #problems.drop(columns='temp')
+
+#     df_temp = None
+#     cl_temp = None
+
+
 for col in ['t/ha', 'ml/ha', 'ml/t', 'fuel / t', '#No. Passes',
             'fertiliser/ha', 'fertiliser/tonnes', 'irrigation%']:
 
-    #TODO
-    # check by zone as well as region
+    # Group by 'GI Region'
     gp = df.groupby('GI Region')
     regions = []
     counts = gp[col].count()
@@ -217,28 +261,29 @@ for col in ['t/ha', 'ml/ha', 'ml/t', 'fuel / t', '#No. Passes',
         if counts.loc[region] > minimum_count:
             regions.append(region)
     gp = df[df['GI Region'].isin(regions)].groupby('GI Region')
-    #
+    
+    # Calculate z-scores
     df_temp = gp[col].transform(zscore)
-    df_temp = pd.concat(
-        (df_temp[df_temp > threshold], df_temp[df_temp < -threshold]),
-        axis=0)
+    
+    # Align the indices and extract original values where z-scores are unusual
+    original_values = df[col].where((df_temp > threshold) | (df_temp < -threshold))
+    
+    # Group by 'Climate'
     cl = df.groupby('Climate')
     cl_temp = cl[col].transform(zscore)
-    cl_temp = pd.concat(
-        (cl_temp[cl_temp > threshold], cl_temp[cl_temp < -threshold]),
-        axis=0)
+    
+    # Align the indices and extract original values where z-scores are unusual
+    cl_original_values = df[col].where((cl_temp > threshold) | (cl_temp < -threshold))
 
-    problems['Unusual ' + col] = np.nan
-    problems['Unusual ' + col].fillna(cl_temp, inplace=True)
-    problems['Unusual ' + col].fillna(df_temp, inplace=True)
-    #problems['Unusual ' + col + ' (by region)'] = np.nan
-    #problems['Unusual ' + col + ' (by region)'].fillna(df_temp, inplace=True)
-    #problems['Unusual ' + col + ' (by climate)'] = np.nan
-    #problems['Unusual ' + col + ' (by climate)'].fillna(cl_temp, inplace=True)
+    # Initialize or update the 'problems' DataFrame
+    if 'Unusual ' + col not in problems:
+        problems['Unusual ' + col] = np.nan
 
+    # Fill with the original values from the unusual z-scores
+    problems['Unusual ' + col].fillna(cl_original_values, inplace=True)
+    problems['Unusual ' + col].fillna(original_values, inplace=True)
 
-    #problems.drop(columns='temp')
-
+    # Clear temporary variables for the next iteration
     df_temp = None
     cl_temp = None
 
@@ -435,6 +480,8 @@ problems['Solar irrigation and no solar electricity used'] = \
 #TODO
 # - If there is no Electricity from the grid (kWh) they have to use solar
 # I am not sure if the above is done correctly.
+
+problems["23/24"] = df["Paid At"].apply(lambda x: 'Yes' if pd.notnull(x) else None)
 
 ###############################
 # Create the output Excel sheet
