@@ -296,11 +296,18 @@ problems['Using water without irrigation'] = cond_problem(
 
 # look for people entering 100 as a percentage instead of the actual
 # amount of ha
-problems['Using percentages instead of ha/ml'] = np.nan
-df_conc = pd.concat(
-    [df[df['Total Vineyard Area']!=100][df['total irrigation']==100]
-    , df[df['Total Vineyard Area']!=1][df['total irrigation']==1]]
-)
+# 
+# This is commented out because it only checks if they are equal to 1
+# or 100. If percentage is actually extered instead of the ha. Then a
+# calculation should be used to see if the vineyard isn't 1/100 and
+# that they are entering the percentage...
+# 
+# problems['Using percentages instead of ha/ml'] = np.nan
+# df_conc = pd.concat(
+#     [df[df['Total Vineyard Area']!=100][df['total irrigation']==100]
+#     , df[df['Total Vineyard Area']!=1][df['total irrigation']==1]]
+# )
+# 
 problems['Using percentages instead of ha/ml'] = cond_problem(
     df_conc[
         ~df_conc.index.duplicated(
